@@ -1,0 +1,106 @@
+# ------------------------------------------------------------
+# STEP 3: CONVERT NUMERICAL COUNTS TO BOOLEAN VALUES
+# 0 means item absent; any positive count means item present.
+# FP-Growth requires a Boolean transaction matrix.
+# ------------------------------------------------------------
+
+transaction_matrix = pivot_df.gt(0)
+
+print("\nBoolean transaction matrix:")
+print(transaction_matrix.head())
+print("\nTransaction matrix shape:", transaction_matrix.shape)
+
+# ------------------------------------------------------------
+# STEP 4: APPLY FP-GROWTH
+# Minimum support in the supplied PDF: 3.0E-4 = 0.0003.
+# ------------------------------------------------------------
+
+MIN_SUPPORT = 0.0003
+
+frequent_itemsets = fpgrowth(
+    transaction_matrix,
+    min_support=MIN_SUPPORT,
+    use_colnames=True
+)
+
+print("\nNumber of frequent itemsets:", len(frequent_itemsets))
+
+# ------------------------------------------------------------
+# STEP 5: GENERATE ASSOCIATION RULES
+# Minimum confidence was not numerically specified in the PDF.
+# Use 0.5 as an explicit practical default; adjust if your
+# instructor/RapidMiner configuration specifies another value.
+# ------------------------------------------------------------
+
+MIN_CONFIDENCE = 0.5
+
+if frequent_itemsets.empty:
+    rules = pd.DataFrame()
+else:
+    rules = association_rules(
+        frequent_itemsets,
+        metric="confidence",
+        min_threshold=MIN_CONFIDENCE
+    )
+    rules = rules.sort_values(
+        by="lift",
+        ascending=False
+    ).reset_index(drop=True)
+
+print("Number of association rules:", len(rules))
+
+# ------------------------------------------------------------
+# STEP 6: DISPLAY RULES AND SAVE RESULTS
+# ------------------------------------------------------------
+
+if not rules.empty:
+    display_columns = [
+        "antecedents",
+        "consequents",
+        "support",
+        "confidence",
+        "lift"
+    ]
+
+    print("\nAssociation rules sorted by Lift:")
+    print(rules[display_columns].head(20).to_string(index=False))
+
+    readable_rules = rules[display_columns].copy()
+    readable_rules["antecedents"] = readable_rules["antecedents"].apply(
+        lambda items: ", ".join(sorted(items))
+    )
+    readable_rules["consequents"] = readable_rules["consequents"].apply(
+        lambda items: ", ".join(sorted(items))
+    )
+    readable_rules.to_csv(
+        "bank_customer_churn_system_fp_growth_rules.csv",
+        index=False
+    )
+else:
+    print(
+        "\nNo association rules met the selected thresholds. "
+        "Check the input data and support/confidence settings."
+    )
+
+# Save frequent itemsets in readable form.
+if not frequent_itemsets.empty:
+    readable_itemsets = frequent_itemsets.copy()
+    readable_itemsets["itemsets"] = readable_itemsets["itemsets"].apply(
+        lambda items: ", ".join(sorted(items))
+    )
+    readable_itemsets.to_csv(
+        "bank_customer_churn_system_fp_growth_itemsets.csv",
+        index=False
+    )
+
+# Save the Boolean transaction matrix.
+transaction_matrix.to_csv(
+    "bank_customer_churn_system_transaction_matrix.csv",
+    index=True
+)
+
+print("\nGenerated files:")
+print("- bank_customer_churn_system_transaction_matrix.csv")
+print("- bank_customer_churn_system_fp_growth_itemsets.csv")
+print("- bank_customer_churn_system_fp_growth_rules.csv")
+print("\nExperiment 9 FP-Growth execution completed.")
